@@ -8,14 +8,25 @@
   <license>MIT</license>
   <author>Haebeom Jung</author>
 
-  <buildtool_depend>ament_cmake</buildtool_depend>
+  <buildtool_depend>ament_cmake_auto</buildtool_depend>
 
   <depend>rclcpp</depend>
   <depend>sensor_msgs</depend>
+  <depend>geometry_msgs</depend>
+  <depend>nav_msgs</depend>
   <depend>cv_bridge</depend>
   <depend>message_filters</depend>
-  <depend>Pangolin</depend>
+  <depend>tf2</depend>
+  <depend>tf2_ros</depend>
 
+  <!-- No libraries to link from these, but they must be declared -->
+  <depend>OpenCV</depend>
+
+  <!-- Needed for Pangolin + ORB_SLAM3 wrappers if packaged -->
+  <depend>Pangolin</depend>
+  <depend>Sophus</depend>
+  <depend>ORB_SLAM3</depend>
+<exec_depend>ros2launch</exec_depend>
   <export>
     <build_type>ament_cmake</build_type>
   </export>

@@ -4,19 +4,26 @@
 
 using std::placeholders::_1;
 
-MonocularInertialNode::MonocularInertialNode(ORB_SLAM3::System* pSLAM)
-:   Node("ORB_SLAM3_ROS2")
-{
-    m_SLAM = pSLAM;
-    m_image_subscriber = this->create_subscription<ImageMsg>(
-        "camera", 10, std::bind(&MonocularInertialNode::GrabImage, this, _1));
+MonocularInertialNode::MonocularInertialNode(ORB_SLAM3::System *pSLAM)
+    : Node("ORB_SLAM3_ROS2") {
+  m_SLAM = pSLAM;
+  m_image_subscriber = this->create_subscription<ImageMsg>(
+      "camera", 10, std::bind(&MonocularInertialNode::GrabImage, this, _1));
 
-    subImu_ = this->create_subscription<ImuMsg>(
-        "imu", 1000, std::bind(&MonocularInertialNode::GrabImu, this, _1));
+  subImu_ = this->create_subscription<ImuMsg>(
+      "imu", 1000, std::bind(&MonocularInertialNode::GrabImu, this, _1));
 
-    syncThread_ = new std::thread(&MonocularInertialNode::SyncWithImu, this);
+  syncThread_ = new std::thread(&MonocularInertialNode::SyncWithImu, this);
 
-    std::cout << "System Initialization Complete" << std::endl;
+  std::cout << "System Initialization Complete" << std::endl;
+  pose_pub_ = this->create_publisher<geometry_msgs::msg::PoseStamped>(
+      "camera_pose", 10);
+  path_pub_ =
+      this->create_publisher<nav_msgs::msg::Path>("camera_trajectory", 10);
+
+  // Initialize the frame for the path
+  path_msg_.header.frame_id = "world";
+  tf_broadcaster_ = std::make_unique<tf2_ros::TransformBroadcaster>(*this);
 }
 
 MonocularInertialNode::~MonocularInertialNode()
@@ -120,11 +127,66 @@ void MonocularInertialNode::SyncWithImu()
                 continue; // Skip processing this frame
             }
 
-            try {
+            // try {
+            Sophus::SE3f Tcw =
                 m_SLAM->TrackMonocular(imageFrame, tImage, vImuMeas);
-                // RCLCPP_INFO(this->get_logger(), "Image at %.6f processed with IMU data: \n%s", tImageshort, imu_data_stream.str().c_str());
-            } catch (const std::exception& e) {
-                RCLCPP_ERROR(this->get_logger(), "SLAM processing exception: %s", e.what());
+            m_SLAM->SaveKeyFrameTrajectoryTUM("KeyFrameTrajectory.txt");
+            // RCLCPP_INFO(this->get_logger(), "Image at %.6f processed with IMU
+            // data: \n%s", tImageshort, imu_data_stream.str().c_str());
+            // } catch (const std::exception& e) {
+            // RCLCPP_ERROR(this->get_logger(), "SLAM processing exception: %s",
+            // e.what());
+            // }
+            int state = m_SLAM->GetTrackingState();
+            if (state == ORB_SLAM3::Tracking::OK ||
+                state == ORB_SLAM3::Tracking::RECENTLY_LOST) {
+              Sophus::SE3f Twc = Tcw.inverse();
+
+              // 4. Extract Translation and Rotation (Eigen types)
+              Eigen::Vector3f translation = Twc.translation();
+              Eigen::Quaternionf rotation = Twc.unit_quaternion();
+
+              // --- PUBLISH POSE STAMPED ---
+              geometry_msgs::msg::PoseStamped pose_msg;
+              pose_msg.header.stamp =
+                  imgPtr->header.stamp; // Use original image timestamp
+              pose_msg.header.frame_id = "world";
+
+              pose_msg.pose.position.x = translation.x();
+              pose_msg.pose.position.y = translation.y();
+              pose_msg.pose.position.z = translation.z();
+
+              pose_msg.pose.orientation.x = rotation.x();
+              pose_msg.pose.orientation.y = rotation.y();
+              pose_msg.pose.orientation.z = rotation.z();
+              pose_msg.pose.orientation.w = rotation.w();
+
+              pose_pub_->publish(pose_msg);
+              // 1. Update Path Header to match current time
+              path_msg_.header.stamp = imgPtr->header.stamp;
+
+              // 2. Add the current pose to the path history
+              path_msg_.poses.push_back(pose_msg);
+
+              // 3. Publish the full path
+              path_pub_->publish(path_msg_);
+
+              // --- PUBLISH TF ---
+              geometry_msgs::msg::TransformStamped tf_msg;
+              tf_msg.header.stamp = imgPtr->header.stamp;
+              tf_msg.header.frame_id = "world";
+              tf_msg.child_frame_id = "camera";
+
+              tf_msg.transform.translation.x = translation.x();
+              tf_msg.transform.translation.y = translation.y();
+              tf_msg.transform.translation.z = translation.z();
+
+              tf_msg.transform.rotation.x = rotation.x();
+              tf_msg.transform.rotation.y = rotation.y();
+              tf_msg.transform.rotation.z = rotation.z();
+              tf_msg.transform.rotation.w = rotation.w();
+
+              tf_broadcaster_->sendTransform(tf_msg);
             }
         }
 
@@ -134,4 +196,3 @@ void MonocularInertialNode::SyncWithImu()
         std::this_thread::sleep_for(std::chrono::milliseconds(10));
     }
 }
-

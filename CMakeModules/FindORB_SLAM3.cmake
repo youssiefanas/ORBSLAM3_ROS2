@@ -5,7 +5,7 @@
 #
 # To help the search ORB_SLAM3_ROOT_DIR environment variable as the path to ORB_SLAM3 root folder
 #  e.g. `set( ORB_SLAM3_ROOT_DIR=~/ORB_SLAM3) `
-set(ORB_SLAM3_ROOT_DIR "~/ORB_SLAM3")
+set(ORB_SLAM3_ROOT_DIR "/home/anas/ORB_SLAM3")
 
 # message(${ORB_SLAM3_ROOT_DIR})
 # message(${ORB_SLAM3_ROOT_DIR}/include)
@@ -19,8 +19,8 @@ find_library(ORB_SLAM3_LIBRARY NAMES ORB_SLAM3 libORB_SLAM3
              PATHS ${ORB_SLAM3_ROOT_DIR}/lib)
 
 # Find built-in DBoW2
-find_path(DBoW2_INCLUDE_DIR NAMES Thirdparty/DBoW2/DBoW2/BowVector.h
-          PATHS ${ORB_SLAM3_ROOT_DIR})
+find_path(DBoW2_INCLUDE_DIR NAMES BowVector.h
+          PATHS ${ORB_SLAM3_ROOT_DIR}/Thirdparty/DBoW2/DBoW2)
 
 find_library(DBoW2_LIBRARY NAMES DBoW2
              PATHS ${ORB_SLAM3_ROOT_DIR}/Thirdparty/DBoW2/lib)
@@ -29,6 +29,10 @@ find_library(DBoW2_LIBRARY NAMES DBoW2
 find_library(g2o_LIBRARY NAMES g2o
              PATHS ${ORB_SLAM3_ROOT_DIR}/Thirdparty/g2o/lib)
 
+find_path(Sophus_INCLUDE_DIR NAMES sophus/geometry.hpp
+          PATHS ${ORB_SLAM3_ROOT_DIR}/Thirdparty/Sophus)
+
+set(ORB_SLAM3_INCLUDE_DIRS ${ORB_SLAM3_INCLUDE_DIRS} ${Sophus_INCLUDE_DIR})
 
 
 include(FindPackageHandleStandardArgs)
