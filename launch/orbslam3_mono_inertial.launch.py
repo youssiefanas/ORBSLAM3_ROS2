@@ -11,8 +11,11 @@ def generate_launch_description():
 
     orbslam3_pkg_share_dir = get_package_share_directory('orbslam3')
 
-    vocab_path = '/home/anas/kilted_ws/src/ORBSLAM3_ROS2/vocabulary/ORBvoc.txt'
-
+    vocab_path = os.path.join(
+        orbslam3_pkg_share_dir,
+        'vocabulary',
+        'ORBvoc.txt'
+    )
     settings_path = '/home/anas/ORB_SLAM3/Examples/Monocular-Inertial/AQUALOC/aqua.yaml'
 
     

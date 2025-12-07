@@ -1,42 +1,34 @@
-# ORB_SLAM3_ROS2
-This repository is ROS2 wrapping to use ORB_SLAM3
+# ORBSLAM3_ROS2 Wrapper
 
----
-
-## Demo Video
-[![orbslam3_ros2](https://user-images.githubusercontent.com/31432135/220839530-786b8a28-d5af-4aa5-b4ed-6234c2f4ca33.PNG)](https://www.youtube.com/watch?v=zXeXL8q72lM)
+This repository is a ROS 2 wrapper for [ORB_SLAM3](https://github.com/UZ-SLAMLab/ORB_SLAM3).
 
 ## Prerequisites
-- I have tested on below version.
-  - Ubuntu 20.04
-  - ROS2 foxy
-  - OpenCV 4.2.0
 
-- Build ORB_SLAM3
-  - Go to this [repo](https://github.com/zang09/ORB-SLAM3-STEREO-FIXED) and follow build instruction.
+- **OS**: Ubuntu 22.04 or 24.04
+- **ROS 2**: Rolling (Kilted) or Jazzy
+- **OpenCV**: 4.x
 
-- Install related ROS2 package
-```
-$ sudo apt install ros-$ROS_DISTRO-vision-opencv && sudo apt install ros-$ROS_DISTRO-message-filters
-```
+### Build ORB_SLAM3
+You need to have ORB_SLAM3 installed. You can use the original repository or a fork compatible with your system.
 
 ## How to build
-1. Clone repository to your ROS workspace
-```
-$ mkdir -p colcon_ws/src
-$ cd ~/colcon_ws/src
-$ git clone https://github.com/zang09/ORB_SLAM3_ROS2.git orbslam3_ros2
-```
 
-2. Change this [line](https://github.com/zang09/ORB_SLAM3_ROS2/blob/ee82428ed627922058b93fea1d647725c813584e/CMakeLists.txt#L5) to your own `python site-packages` path
+1. **Clone the repository** into your ROS 2 workspace:
+   ```bash
+   mkdir -p colcon_ws/src
+   cd colcon_ws/src
+   git clone git@github.com:youssiefanas/ORBSLAM3_ROS2.git
+   ```
 
-3. Change this [line](https://github.com/zang09/ORB_SLAM3_ROS2/blob/ee82428ed627922058b93fea1d647725c813584e/CMakeModules/FindORB_SLAM3.cmake#L8) to your own `ORB_SLAM3` path
+2. **Configure Paths**:
+   - Update `CMakeLists.txt`: Set the path to your Python site-packages if necessary.
+   - Update `CMakeModules/FindORB_SLAM3.cmake`: Set the correct path to your `ORB_SLAM3` installation.
 
-Now, you are ready to build!
-```
-$ cd ~/colcon_ws
-$ colcon build --symlink-install --packages-select orbslam3
-```
+3. **Build**:
+   ```bash
+   cd ~/colcon_ws
+   colcon build --symlink-install --packages-select orbslam3
+   ```
 
 ## Troubleshootings
 1. If you cannot find `sophus/se3.hpp`:  
@@ -50,65 +42,46 @@ $ sudo make install
 Refer this [#issue](https://github.com/zang09/ORB_SLAM3_ROS2/issues/2#issuecomment-1251850857)
 
 ## How to use
-1. Source the workspace  
-```
-$ source ~/colcon_ws/install/local_setup.bash
+
+### Monocular Inertial Node
+
+This wrapper provides a launch file `monocular_inertial_launch.py` to easily run the Monocular Inertial node.
+
+#### Running the Launch File
+
+```bash
+ros2 launch orbslam3 monocular_inertial_launch.py \
+    vocabulary_path:=/path/to/ORBvoc.txt \
+    config_path:=/path/to/config.yaml \
+    image_topic:=/camera/image_raw \
+    imu_topic:=/imu/data
 ```
 
-2. Run orbslam mode, which you want.  
-This repository only support `MONO, STEREO, RGBD, STEREO-INERTIAL` mode now.  
-You can find vocabulary file and config file in here. (e.g. `orbslam3_ros2/vocabulary/ORBvoc.txt`, `orbslam3_ros2/config/monocular/TUM1.yaml` for monocular SLAM).
-  - `MONO` mode  
-```
-$ ros2 run orbslam3 mono PATH_TO_VOCABULARY PATH_TO_YAML_CONFIG_FILE
-```
-  - `STEREO` mode  
-```
-$ ros2 run orbslam3 stereo PATH_TO_VOCABULARY PATH_TO_YAML_CONFIG_FILE BOOL_RECTIFY
-```
-  - `RGBD` mode  
-```
-$ ros2 run orbslam3 rgbd PATH_TO_VOCABULARY PATH_TO_YAML_CONFIG_FILE
-```
-  - `STEREO-INERTIAL` mode  
-```
-$ ros2 run orbslam3 stereo-inertial PATH_TO_VOCABULARY PATH_TO_YAML_CONFIG_FILE BOOL_RECTIFY [BOOL_EQUALIZE]
-```
+#### Launch Arguments
 
-## Run with rosbag
-To play ros1 bag file, you should install `ros1 noetic` & `ros1 bridge`.  
-Here is a [link](https://www.theconstructsim.com/ros2-qa-217-how-to-mix-ros1-and-ros2-packages/) to demonstrate example of `ros1-ros2 bridge` procedure.  
-If you have `ros1 noetic` and `ros1 bridge` already, open your terminal and follow this:  
-(Shell A, B, C, D is all different terminal, e.g. `stereo-inertial` mode)
-1. Download EuRoC Dataset (`V1_02_medium.bag`)
+| Argument | Default | Description |
+|----------|---------|-------------|
+| `vocabulary_path` | `share/orbslam3/vocabulary/ORBvoc.txt` | Path to the ORB_SLAM3 vocabulary file. |
+| `config_path` | *Hardware specific* | **REQUIRED**. Path to the configuration YAML file (e.g., `EuRoC.yaml` or `aqua.yaml`). |
+| `image_topic` | `/camera/image_raw` | Topic name for the camera images. |
+| `imu_topic` | `/rtimulib_node/imu` | Topic name for the IMU data. |
+| `use_compressed` | `false` | Set to `true` if using compressed image transport. |
+
+#### Important Paths Configuration
+
+1.  **ORB_SLAM3 Library**: Ensure the `FindORB_SLAM3.cmake` file points to where you built the ORB_SLAM3 library.
+2.  **Vocabulary File**: The launch file defaults to looking for `ORBvoc.txt` in the package share directory. You can specify a different path using the `vocabulary_path` argument.
+3.  **YAML Configuration**:
+    - You **must** provide a valid YAML configuration file designed for ORB-SLAM3 Monocular Inertial mode.
+    - Example files can be found in the `Examples` folder of the original ORB_SLAM3 repository (e.g., `EuRoC.yaml`, `TUM-VI.yaml`).
+    - Pass the absolute path to this file using the `config_path` argument.
+    - **Note**: The default value in `monocular_inertial_launch.py` might point to a specific user directory (`/home/anas/...`). **You should always override this argument with your own config path.**
+
+### Example Command
+
+```bash
+ros2 launch orbslam3 monocular_inertial_launch.py \
+    config_path:=/home/user/ORB_SLAM3/Examples/Monocular-Inertial/EuRoC.yaml \
+    image_topic:=/cam0/image_raw \
+    imu_topic:=/imu0
 ```
-$ wget -P ~/Downloads http://robotics.ethz.ch/~asl-datasets/ijrr_euroc_mav_dataset/vicon_room1/V1_02_medium/V1_02_medium.bag
-```  
-
-2. Launch Terminal  
-(e.g. `ROS1_INSTALL_PATH`=`/opt/ros/noetic`, `ROS2_INSTALL_PATH`=`/opt/ros/foxy`)
-```
-#Shell A:
-source ${ROS1_INSTALL_PATH}/setup.bash
-roscore
-
-#Shell B:
-source ${ROS1_INSTALL_PATH}/setup.bash
-source ${ROS2_INSTALL_PATH}/setup.bash
-export ROS_MASTER_URI=http://localhost:11311
-ros2 run ros1_bridge dynamic_bridge
-
-#Shell C:
-source ${ROS1_INSTALL_PATH}/setup.bash
-rosbag play ~/Downloads/V1_02_medium.bag --pause /cam0/image_raw:=/camera/left /cam1/image_raw:=/camera/right /imu0:=/imu
-
-#Shell D:
-source ${ROS2_INSTALL_PATH}/setup.bash
-ros2 run orbslam3 stereo-inertial PATH_TO_VOCABULARY PATH_TO_YAML_CONFIG_FILE BOOL_RECTIFY [BOOL_EQUALIZE]
-```
-
-3. Press `spacebar` in `Shell C` to resume bag file.  
-
-## Acknowledgments
-This repository is modified from [this](https://github.com/curryc/ros2_orbslam3) repository.  
-To add `stereo-inertial` mode and improve build difficulites.

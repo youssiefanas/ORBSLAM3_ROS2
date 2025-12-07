@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.5)
 project(orbslam3)
 
-set(ENV{PYTHONPATH} "/opt/ros/kilted/lib/python3.12/site-packages/")
+set(ENV{PYTHONPATH} "$ENV{PYTHONPATH}:/opt/ros/${ROS_DISTRO}/lib/python3/dist-packages")
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${CMAKE_CURRENT_SOURCE_DIR}/CMakeModules)
 
 
