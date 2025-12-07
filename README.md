@@ -61,7 +61,7 @@ ros2 launch orbslam3 monocular_inertial_launch.py \
 
 | Argument | Default | Description |
 |----------|---------|-------------|
-| `vocabulary_path` | `share/orbslam3/vocabulary/ORBvoc.txt` | Path to the ORB_SLAM3 vocabulary file. |
+| `vocabulary_path` | `src/ORBSLAM3_ROS2/vocabulary/ORBvoc.txt` | Path to the ORB_SLAM3 vocabulary file. |
 | `config_path` | *Hardware specific* | **REQUIRED**. Path to the configuration YAML file (e.g., `EuRoC.yaml` or `aqua.yaml`). |
 | `image_topic` | `/camera/image_raw` | Topic name for the camera images. |
 | `imu_topic` | `/rtimulib_node/imu` | Topic name for the IMU data. |
