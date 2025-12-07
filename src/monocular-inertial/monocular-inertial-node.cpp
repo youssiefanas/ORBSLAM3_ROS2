@@ -37,15 +37,30 @@ MonocularInertialSlamNode::MonocularInertialSlamNode(
     return;
   }
 
-  // Initialize SLAM System
+  // 2. Initialize Publishers (ORDER MATTERS: Init before use in
+  // threads/callbacks)
+  auto qos = rclcpp::QoS(rclcpp::KeepLast(10)).reliable();
+
+  m_pointcloud_publisher =
+      this->create_publisher<sensor_msgs::msg::PointCloud2>(
+          "/orb_slam3/map_points", qos);
+
+  pose_pub_ = this->create_publisher<geometry_msgs::msg::PoseStamped>(
+      "/orb_slam3/camera_pose", qos);
+
+  path_pub_ = this->create_publisher<nav_msgs::msg::Path>(
+      "/orb_slam3/camera_trajectory", qos);
+  path_msg_.header.frame_id = "map";
+
+  tf_broadcaster_ = std::make_unique<tf2_ros::TransformBroadcaster>(*this);
+
+  // 3. Initialize SLAM System
   bool visualization = true;
   m_SLAM = std::make_unique<ORB_SLAM3::System>(vocabulary_path, config_path,
                                                ORB_SLAM3::System::IMU_MONOCULAR,
                                                visualization);
 
-  // Subscribers
-  auto qos = rclcpp::QoS(rclcpp::SensorDataQoS());
-
+  // 4. Initialize Subscribers
   subImu_ = this->create_subscription<ImuMsg>(
       imu_topic, 1000,
       std::bind(&MonocularInertialSlamNode::GrabImu, this, _1));
@@ -64,29 +79,10 @@ MonocularInertialSlamNode::MonocularInertialSlamNode(
         std::bind(&MonocularInertialSlamNode::GrabImage, this,
                   std::placeholders::_1));
   }
-  // Point cloud publisher
-  m_pointcloud_publisher =
-      this->create_publisher<sensor_msgs::msg::PointCloud2>(
-          "/orb_slam3/map_points", qos);
-
-  // Publish point cloud periodically (every 1 second)
-  // m_pointcloud_timer = this->create_wall_timer(
-  //     std::chrono::seconds(1),
-  //     std::bind(&MonocularInertialSlamNode::PublishMapPoints, this));
-
-  // Pose Publisher
-  pose_pub_ = this->create_publisher<geometry_msgs::msg::PoseStamped>(
-      "/orb_slam3/camera_pose", qos);
-
-  path_pub_ = this->create_publisher<nav_msgs::msg::Path>(
-      "/orb_slam3/camera_trajectory", qos);
-  path_msg_.header.frame_id = "map";
-
-  tf_broadcaster_ = std::make_unique<tf2_ros::TransformBroadcaster>(*this);
 
   std::cout << "slam changed" << std::endl;
 
-  // START NEW POSE THREAD
+  // 5. Initialize Threads
   mbExitPoseThread_ = false;
   mbExitMapPointsThread_ = false;
 
@@ -96,7 +92,6 @@ MonocularInertialSlamNode::MonocularInertialSlamNode(
   mapPointsThread_ = std::make_unique<std::thread>(
       &MonocularInertialSlamNode::PublishMapPointsLoop, this);
 
-  // Initialize Threads
   syncThread_ = std::make_unique<std::thread>(
       &MonocularInertialSlamNode::SyncWithImu, this);
 }
@@ -355,7 +350,7 @@ void MonocularInertialSlamNode::PublishMapPointsLoop() {
     cloud_msg.width = valid_points;
 
     // 6. Publish
-    if (valid_points > 0) {
+    if (valid_points > 0 && m_pointcloud_publisher) {
       m_pointcloud_publisher->publish(cloud_msg);
     }
   }
@@ -415,7 +410,10 @@ void MonocularInertialSlamNode::PublishPoseLoop() {
     pose_msg.header.stamp = currentPose.timestamp;
     pose_msg.header.frame_id = "map";
     pose_msg.pose = pose;
-    pose_pub_->publish(pose_msg);
+
+    if (pose_pub_) {
+      pose_pub_->publish(pose_msg);
+    }
 
     // Broadcast TF
     geometry_msgs::msg::TransformStamped tf_msg;
@@ -428,12 +426,16 @@ void MonocularInertialSlamNode::PublishPoseLoop() {
     tf_msg.transform.translation.z = pose.position.z;
     tf_msg.transform.rotation = pose.orientation;
 
-    tf_broadcaster_->sendTransform(tf_msg);
+    if (tf_broadcaster_) {
+      tf_broadcaster_->sendTransform(tf_msg);
+    }
 
     path_msg_.header.stamp = currentPose.timestamp;
     path_msg_.poses.push_back(pose_msg);
 
     // Publish the full path
-    path_pub_->publish(path_msg_);
-  }
+    if (path_pub_) {
+      path_pub_->publish(path_msg_);
+    }
+}
 }
