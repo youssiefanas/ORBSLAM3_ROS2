@@ -69,7 +69,7 @@ ament_auto_add_executable(stereo_inertial
 )
 target_link_libraries(stereo_inertial ${EXTRA_LIBS} ${OPENCV_LIBS})
 
-install(DIRECTORY launch
+install(DIRECTORY launch config vocabulary
   DESTINATION share/${PROJECT_NAME}
 )
 

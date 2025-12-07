@@ -6,29 +6,21 @@
 #include "rclcpp/rclcpp.hpp"
 #include "monocular-inertial-node.hpp"
 
-#include "System.h"
+int main(int argc, char **argv) {
+  rclcpp::init(argc, argv);
 
-int main(int argc, char **argv)
-{
-    if(argc < 3)
-    {
-        std::cerr << "\nUsage: ros2 run orbslam mono_inertial path_to_vocabulary path_to_settings" << std::endl;
-        rclcpp::shutdown();
-        return 1;
-    }
+  auto node = std::make_shared<MonocularInertialSlamNode>();
+  std::cout << "============================ " << std::endl;
 
-    rclcpp::init(argc, argv);
+  rclcpp::spin(node);
 
-    // malloc error using new.. try shared ptr
-    // Create SLAM system. It initializes all system threads and gets ready to process frames.
-    bool visualization = true;
-    ORB_SLAM3::System pSLAM(argv[1], argv[2], ORB_SLAM3::System::IMU_MONOCULAR, visualization);
+  std::cout << "Exiting..." << std::endl;
 
-    auto node = std::make_shared<MonocularInertialNode>(&pSLAM);
-    std::cout << "============================ " << std::endl;
+  // Node destructor is called here when node goes out of scope or is reset
+  node.reset();
+  std::cout << "Node destroyed." << std::endl;
 
-    rclcpp::spin(node);
-    rclcpp::shutdown();
+  rclcpp::shutdown();
 
-    return 0;
+  return 0;
 }
