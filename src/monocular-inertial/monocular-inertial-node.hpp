@@ -44,6 +44,7 @@ private:
   void GrabImage(const sensor_msgs::msg::Image::SharedPtr msg);
   void
   GrabCompressedImage(const sensor_msgs::msg::CompressedImage::SharedPtr msg);
+  void GrabGroundTruth(const geometry_msgs::msg::PoseStamped::SharedPtr msg);
 
   cv::Mat GetImage(const ImageMsg::SharedPtr msg);
   cv::Mat GetCompressedImage(const CompressedImageMsg::SharedPtr msg);
@@ -70,6 +71,7 @@ private:
   rclcpp::Subscription<ImuMsg>::SharedPtr subImu_;
   rclcpp::Subscription<CompressedImageMsg>::SharedPtr subImgCompressed_;
   rclcpp::Subscription<ImageMsg>::SharedPtr subImgRaw_;
+  rclcpp::Subscription<geometry_msgs::msg::PoseStamped>::SharedPtr subGroundTruth_;
 
   rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr
       m_pointcloud_publisher;
@@ -101,6 +103,11 @@ private:
   bool bClahe_ = false;
   cv::Ptr<cv::CLAHE> clahe_ = cv::createCLAHE(3.0, cv::Size(8, 8));
   double m_timeshiftCamImu = 0.0;
+  std::string results_dir_;
+
+  // Ground truth storage
+  std::vector<std::pair<double, geometry_msgs::msg::Pose>> gt_trajectory_;
+  std::mutex gtMutex_;
 };
 
 #endif

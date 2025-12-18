@@ -3,3 +3,4 @@ config/isaac
 build/
 install/
 log/
+/scripts/session_*

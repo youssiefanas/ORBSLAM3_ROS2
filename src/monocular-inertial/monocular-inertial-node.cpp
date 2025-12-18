@@ -4,6 +4,9 @@
 #include <sensor_msgs/point_cloud2_iterator.hpp>
 
 #include "utility.hpp"
+#include <filesystem>
+#include <iomanip>
+#include <sstream>
 
 using std::placeholders::_1;
 
@@ -17,6 +20,7 @@ MonocularInertialSlamNode::MonocularInertialSlamNode(
   this->declare_parameter("imu_topic", "/oceansim/robot/imu");
   this->declare_parameter("image_topic", "/oceansim/robot/uw_img");
   this->declare_parameter("use_compressed", true);
+  this->declare_parameter("trial_name", "");
   this->declare_parameter<double>("TimeshiftCamImu", 0.0);
   this->get_parameter("TimeshiftCamImu", m_timeshiftCamImu);
 
@@ -28,7 +32,33 @@ MonocularInertialSlamNode::MonocularInertialSlamNode(
   std::string config_path = this->get_parameter("config_path").as_string();
   std::string imu_topic = this->get_parameter("imu_topic").as_string();
   std::string image_topic = this->get_parameter("image_topic").as_string();
+  std::string trial_name = this->get_parameter("trial_name").as_string();
   bUseCompressed_ = this->get_parameter("use_compressed").as_bool();
+
+  // Create timestamp string
+  auto now = std::chrono::system_clock::now();
+  auto in_time_t = std::chrono::system_clock::to_time_t(now);
+  std::stringstream ss;
+  ss << std::put_time(std::localtime(&in_time_t), "%Y_%m_%d_%H_%M_%S");
+  std::string timestamp = ss.str();
+
+  // Construct directory name
+  results_dir_ = "session_" + timestamp;
+  if (!trial_name.empty()) {
+      results_dir_ += "_" + trial_name;
+  }
+
+  // Create directory
+  try {
+      if (std::filesystem::create_directory(results_dir_)) {
+          RCLCPP_INFO(this->get_logger(), "Created results directory: %s", results_dir_.c_str());
+      } else {
+           RCLCPP_INFO(this->get_logger(), "Results directory might already exist: %s", results_dir_.c_str());
+      }
+  } catch (const std::exception& e) {
+      RCLCPP_ERROR(this->get_logger(), "Failed to create results directory: %s", e.what());
+      // Fallback or exit? For now just log, but saving will fail later.
+  }
 
   if (vocabulary_path.empty() || config_path.empty()) {
     RCLCPP_ERROR(this->get_logger(),
@@ -80,6 +110,11 @@ MonocularInertialSlamNode::MonocularInertialSlamNode(
                   std::placeholders::_1));
   }
 
+  // Ground Truth Subscriber
+  subGroundTruth_ = this->create_subscription<geometry_msgs::msg::PoseStamped>(
+      "/oceansim/robot/pose", 100,
+      std::bind(&MonocularInertialSlamNode::GrabGroundTruth, this, _1));
+
   std::cout << "slam changed" << std::endl;
 
   // 5. Initialize Threads
@@ -97,6 +132,7 @@ MonocularInertialSlamNode::MonocularInertialSlamNode(
 }
 
 MonocularInertialSlamNode::~MonocularInertialSlamNode() {
+  RCLCPP_INFO(this->get_logger(), "Destructor called. Saving results...");
   // 1. Stop Sync Thread
   if (syncThread_ && syncThread_->joinable()) {
     syncThread_->join();
@@ -123,8 +159,34 @@ MonocularInertialSlamNode::~MonocularInertialSlamNode() {
   // 3. Stop SLAM
   if (m_SLAM) {
     m_SLAM->Shutdown();
-    m_SLAM->SavePointCloudMap("PointCloud.txt");
-    m_SLAM->SaveKeyFrameTrajectoryTUM("KeyFrameTrajectory.txt");
+    
+    std::string point_cloud_path = results_dir_ + "/PointCloud.txt";
+    std::string keyframe_path = results_dir_ + "/KeyFrameTrajectory.txt";
+    std::string frame_path = results_dir_ + "/FrameTrajectory.txt";
+
+    RCLCPP_INFO(this->get_logger(), "Saving results to %s", results_dir_.c_str());
+    m_SLAM->SavePointCloudMap(point_cloud_path);
+    m_SLAM->SaveKeyFrameTrajectoryTUM(keyframe_path);
+    m_SLAM->SaveTrajectoryTUM(frame_path);
+
+    // Save Ground Truth
+    std::string gt_path = results_dir_ + "/GroundTruth.txt";
+    std::ofstream f;
+    f.open(gt_path.c_str());
+    f << std::fixed;
+
+    std::lock_guard<std::mutex> lock(gtMutex_);
+    for(size_t i=0; i<gt_trajectory_.size(); i++)
+    {
+        const double &time = gt_trajectory_[i].first;
+        const auto &pose = gt_trajectory_[i].second;
+
+        f << std::setprecision(6) << time << " "
+          << std::setprecision(9) << pose.position.x << " " << pose.position.y << " " << pose.position.z << " "
+          << pose.orientation.x << " " << pose.orientation.y << " " << pose.orientation.z << " " << pose.orientation.w << std::endl;
+    }
+    f.close();
+    RCLCPP_INFO(this->get_logger(), "Saved Ground Truth to %s", gt_path.c_str());
   }
 }
 
@@ -146,8 +208,8 @@ void MonocularInertialSlamNode::GrabImage(const ImageMsg::SharedPtr msg) {
   std::lock_guard<std::mutex> lock(mBufMutex);
   if (imgRawBuf_.size() > 0) {
     imgRawBuf_.pop();
-    RCLCPP_WARN(this->get_logger(),
-                "Raw Image buffer overflow, dropping oldest frame");
+  //   RCLCPP_WARN(this->get_logger(),
+  //               "Raw Image buffer overflow, dropping oldest frame");
   }
   imgRawBuf_.push(msg);
 }
@@ -157,10 +219,17 @@ void MonocularInertialSlamNode::GrabCompressedImage(
   std::lock_guard<std::mutex> lock(mBufMutex);
   if (imgCompBuf_.size() > 0) {
     imgCompBuf_.pop();
-    RCLCPP_WARN(this->get_logger(),
-                "Compressed Image buffer overflow, dropping oldest frame");
+  //   RCLCPP_WARN(this->get_logger(),
+  //               "Compressed Image buffer overflow, dropping oldest frame");
   }
   imgCompBuf_.push(msg);
+}
+
+void MonocularInertialSlamNode::GrabGroundTruth(const geometry_msgs::msg::PoseStamped::SharedPtr msg) {
+    // RCLCPP_INFO(this->get_logger(), "Got Ground Truth: %f", Utility::StampToSec(msg->header.stamp));
+    std::lock_guard<std::mutex> lock(gtMutex_);
+    double timestamp = Utility::StampToSec(msg->header.stamp);
+    gt_trajectory_.push_back(std::make_pair(timestamp, msg->pose));
 }
 
 cv::Mat MonocularInertialSlamNode::GetImage(const ImageMsg::SharedPtr msg) {

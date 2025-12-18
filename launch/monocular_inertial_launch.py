@@ -12,7 +12,7 @@ def generate_launch_description():
         'vocabulary', 'ORBvoc.txt'
     )
     # /home/anas/ORB_SLAM3/Examples/Monocular-Inertial/AQUALOC/aqua.yaml
-    config_path_default = '/home/anas/ORB_SLAM3/Examples/Monocular-Inertial/AQUALOC/aqua.yaml'
+    config_path_default = '/home/youssief/jazzy_ws/src/ORBSLAM3_ROS2/config/monocular-inertial/oceansim_camera_imu.yaml'
 
     return LaunchDescription([
         DeclareLaunchArgument(
@@ -27,18 +27,23 @@ def generate_launch_description():
         ),
         DeclareLaunchArgument(
             'imu_topic',
-            default_value='/rtimulib_node/imu',
+            default_value='/oceansim/robot/imu',
             description='IMU topic name'
         ),
         DeclareLaunchArgument(
             'image_topic',
-            default_value='/camera/image_raw',
+            default_value='/oceansim/robot/uw_img',
             description='Image topic name'
         ),
         DeclareLaunchArgument(
             'use_compressed',
-            default_value='false',
+            default_value='true',
             description='Use compressed images (true/false)'
+        ),
+        DeclareLaunchArgument(
+            'trial_name',
+            default_value='',
+            description='Optional name for the trial/session'
         ),
         Node(
             package='orbslam3',
@@ -50,7 +55,8 @@ def generate_launch_description():
                 'config_path': LaunchConfiguration('config_path'),
                 'imu_topic': LaunchConfiguration('imu_topic'),
                 'image_topic': LaunchConfiguration('image_topic'),
-                'use_compressed': LaunchConfiguration('use_compressed')
+                'use_compressed': LaunchConfiguration('use_compressed'),
+                'trial_name': LaunchConfiguration('trial_name')
             }],
         )
     ])
