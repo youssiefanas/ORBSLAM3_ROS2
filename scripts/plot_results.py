@@ -268,7 +268,7 @@ def main():
     frame_traj = load_trajectory(frame_traj_path)
     keyframe_traj = load_trajectory(keyframe_traj_path)
     gt_traj = load_trajectory(gt_path)
-    pcd = load_point_cloud(pcd_path)
+    # pcd = load_point_cloud(pcd_path)
 
     # Alignment Logic
     if args.align and gt_traj is not None and frame_traj is not None:
@@ -298,21 +298,21 @@ def main():
                 frame_traj = transform_trajectory(frame_traj, rot, trans, scale)
                 if keyframe_traj is not None:
                     keyframe_traj = transform_trajectory(keyframe_traj, rot, trans, scale)
-                if pcd is not None:
-                    pcd = transform_point_cloud(pcd, rot, trans, scale)
+                # if pcd is not None:
+                #     pcd = transform_point_cloud(pcd, rot, trans, scale)
 
     fig = plt.figure(figsize=(10, 8))
     ax = fig.add_subplot(111, projection='3d')
 
     # Load and Plot Point Cloud
-    if pcd is not None and len(pcd) > 0:
-        print(f"Loaded {len(pcd)} points from PointCloud.txt")
-        if len(pcd) > 10000:
-             idx = np.random.choice(len(pcd), 10000, replace=False)
-             pcd_plot = pcd[idx]
-        else:
-             pcd_plot = pcd
-        ax.scatter(pcd_plot[:, 0], pcd_plot[:, 1], pcd_plot[:, 2], s=1, c='k', alpha=0.1, label='Map Points')
+    # if pcd is not None and len(pcd) > 0:
+    #     print(f"Loaded {len(pcd)} points from PointCloud.txt")
+    #     if len(pcd) > 10000:
+    #          idx = np.random.choice(len(pcd), 10000, replace=False)
+    #          pcd_plot = pcd[idx]
+    #     else:
+    #          pcd_plot = pcd
+    #     ax.scatter(pcd_plot[:, 0], pcd_plot[:, 1], pcd_plot[:, 2], s=1, c='k', alpha=0.1, label='Map Points')
 
     # Load and Plot Trajectories
     if frame_traj is not None and len(frame_traj) > 0:
@@ -331,7 +331,7 @@ def main():
         # Plot trajectory line (Trajectory path)
         ax.plot(frame_traj[:, 0], frame_traj[:, 1], frame_traj[:, 2], 'k--', linewidth=0.5, alpha=0.5, label='Estimated Path')
         # Plot camera frustums
-        plot_frustums(ax, frame_traj, step=args.step, scale=args.scale, color='k')
+        # plot_frustums(ax, frame_traj, step=args.step, scale=args.scale, color='k')
         
     if keyframe_traj is not None and len(keyframe_traj) > 0:
         if keyframe_traj is not None and len(keyframe_traj) > 0:
@@ -339,7 +339,7 @@ def main():
              # Plot KeyFrames path in distinct color
              ax.plot(keyframe_traj[:, 0], keyframe_traj[:, 1], keyframe_traj[:, 2], 'b-', linewidth=1.5, label='KeyFrame Path')
              # Plot KeyFrame frustums (Blue)
-             plot_frustums(ax, keyframe_traj, step=1, scale=args.scale*1.5, color='b') 
+            #  plot_frustums(ax, keyframe_traj, step=1, scale=args.scale*1.5, color='b') 
 
     # Load and Plot Ground Truth
     gt_traj = load_trajectory(gt_path)
@@ -356,7 +356,7 @@ def main():
     
     # Equal aspect ratio hack
     all_points = []
-    if pcd is not None: all_points.append(pcd) # Use possibly aligned pcd
+    # if pcd is not None: all_points.append(pcd) # Use possibly aligned pcd
     if frame_traj is not None: all_points.append(frame_traj[:, 0:3])
     if gt_traj is not None: all_points.append(gt_traj[:, 0:3])
     

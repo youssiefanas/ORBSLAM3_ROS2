@@ -158,17 +158,6 @@ MonocularInertialSlamNode::~MonocularInertialSlamNode() {
 
   // 3. Stop SLAM
   if (m_SLAM) {
-    m_SLAM->Shutdown();
-    
-    std::string point_cloud_path = results_dir_ + "/PointCloud.txt";
-    std::string keyframe_path = results_dir_ + "/KeyFrameTrajectory.txt";
-    std::string frame_path = results_dir_ + "/FrameTrajectory.txt";
-
-    RCLCPP_INFO(this->get_logger(), "Saving results to %s", results_dir_.c_str());
-    m_SLAM->SavePointCloudMap(point_cloud_path);
-    m_SLAM->SaveKeyFrameTrajectoryTUM(keyframe_path);
-    m_SLAM->SaveTrajectoryTUM(frame_path);
-
     // Save Ground Truth
     std::string gt_path = results_dir_ + "/GroundTruth.txt";
     std::ofstream f;
@@ -187,6 +176,18 @@ MonocularInertialSlamNode::~MonocularInertialSlamNode() {
     }
     f.close();
     RCLCPP_INFO(this->get_logger(), "Saved Ground Truth to %s", gt_path.c_str());
+
+    
+    std::string point_cloud_path = results_dir_ + "/PointCloud.txt";
+    std::string keyframe_path = results_dir_ + "/KeyFrameTrajectory.txt";
+    std::string frame_path = results_dir_ + "/FrameTrajectory.txt";
+    
+    RCLCPP_INFO(this->get_logger(), "Saving results to %s", results_dir_.c_str());
+    m_SLAM->SavePointCloudMap(point_cloud_path);
+    m_SLAM->SaveKeyFrameTrajectoryTUM(keyframe_path);
+    m_SLAM->SaveTrajectoryTUM(frame_path);
+    m_SLAM->Shutdown();
+    
   }
 }
 
